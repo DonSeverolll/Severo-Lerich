@@ -1,0 +1,46 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Severo",
+  "version": "0.1.0",
+  "identifier": "br.severo.assistente",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Severo",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 380,
+        "minHeight": 560,
+        "center": true,
+        "backgroundColor": "#0b0906"
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "msi"],
+    "publisher": "DonSeverolll",
+    "category": "Productivity",
+    "shortDescription": "Assistente de IA pessoal com voz e agente para o PC",
+    "longDescription": "Severo é um assistente de IA pessoal com orbe de voz, fallback automático entre provedores gratuitos (Groq, Cerebras, Gemini, Mistral, OpenRouter) e, no PC, um agente que executa comandos e edita arquivos com sua aprovação.",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["PortugueseBR", "English"]
+      }
+    },
+    "android": {
+      "minSdkVersion": 24
+    }
+  }
+}

@@ -1,0 +1,31 @@
+[package]
+name = "severo"
+version = "0.1.0"
+description = "Severo — assistente de IA pessoal (PC e Android)"
+authors = ["DonSeverolll"]
+edition = "2021"
+license = "MIT"
+
+[lib]
+# staticlib/cdylib são necessários para o Android; rlib para o executável desktop.
+name = "severo_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-http = "2"
+serde = { version = "1", features = ["derive"] }
+
+# Shell (PowerShell) só existe no desktop.
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-shell = "2"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

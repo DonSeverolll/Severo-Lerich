@@ -4,6 +4,10 @@ Agente autônomo de IA para o terminal, feito para Windows (funciona também em 
 Recebe um objetivo, decide quais ferramentas usar, executa no seu PC (PowerShell, arquivos, buscas),
 observa o resultado e repete até concluir — o padrão **ReAct** com *tool calling* da OpenAI.
 
+> **App para PC e Android:** a versão com interface gráfica (tema dourado, orbe de voz, fallback entre
+> Groq/Cerebras/Gemini/Mistral/OpenRouter) está em [app/](app/README.md). Downloads em
+> [Releases](https://github.com/DonSeverolll/Severo-Lerich/releases).
+
 Consome qualquer gateway compatível com `POST /v1/chat/completions` (LiteLLM, OpenRouter, proxy próprio…)
 com **rotação automática de chaves** em erro 429/5xx.
 
