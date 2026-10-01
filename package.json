@@ -1,0 +1,32 @@
+{
+  "name": "severo-lerich",
+  "version": "0.1.0",
+  "description": "Agente autônomo de IA para terminal (Windows-first): lê/escreve arquivos, executa comandos e resolve tarefas em loop ReAct via gateway compatível com OpenAI.",
+  "type": "module",
+  "bin": {
+    "severo": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "engines": {
+    "node": ">=20.10"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "cli-highlight": "^2.1.11",
+    "commander": "^12.1.0",
+    "dotenv": "^16.4.5",
+    "fast-glob": "^3.3.2",
+    "ora": "^8.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
