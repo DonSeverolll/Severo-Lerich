@@ -103,13 +103,13 @@ jobs:
             PASS="$ANDROID_KEYSTORE_PASSWORD"; ALIAS="$ANDROID_KEY_ALIAS"
           else
             echo "::warning::Sem secrets de assinatura: usando uma chave temporária. Atualizar o app exigirá desinstalar a versão anterior."
-            keytool -genkeypair -keystore release.keystore -alias severo -keyalg RSA -keysize 2048 -validity 10000 \
+            keytool -genkeypair -storetype PKCS12 -keystore release.keystore -alias severo -keyalg RSA -keysize 2048 -validity 10000 \
               -storepass severo-temp -keypass severo-temp -dname "CN=Severo, O=Severo, C=BR"
             PASS=severo-temp; ALIAS=severo
           fi
           VERSION=$(node -p "require('./package.json').version")
           "$BT/zipalign" -p -f 4 "$UNSIGNED" aligned.apk
-          "$BT/apksigner" sign --ks release.keystore --ks-pass "pass:$PASS" --ks-key-alias "$ALIAS" --out "Severo_${VERSION}_android.apk" aligned.apk
+          "$BT/apksigner" sign --ks release.keystore --ks-type PKCS12 --ks-pass "pass:$PASS" --ks-key-alias "$ALIAS" --out "Severo_${VERSION}_android.apk" aligned.apk
           "$BT/apksigner" verify "Severo_${VERSION}_android.apk"
       - uses: actions/upload-artifact@v4
         with:
