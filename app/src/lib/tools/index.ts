@@ -127,8 +127,8 @@ const executeCommand: Tool = {
     });
 
     let status = `exit code: ${code ?? 'n/a'} (${((Date.now() - started) / 1000).toFixed(1)}s)`;
-    if (timedOut) status += ` — ENCERRADO POR TIMEOUT após ${Math.round(timeoutMs / 1000)}s`;
-    if (aborted) status += ' — INTERROMPIDO pelo usuário';
+    if (timedOut) status += `, encerrado por timeout após ${Math.round(timeoutMs / 1000)}s`;
+    if (aborted) status += ', interrompido pelo usuário';
     const parts = [status, stdout.trim() ? `--- stdout ---\n${stdout.trimEnd()}` : '--- stdout --- (vazio)'];
     if (stderr.trim()) parts.push(`--- stderr ---\n${stderr.trimEnd()}`);
     if (code !== 0 || timedOut || aborted) throw new ToolFailure(parts.join('\n'));
@@ -275,7 +275,7 @@ const editFileDiff: Tool = {
     const plan = await planEdits(a, ctx);
     await sys.writeText(plan.abs, plan.updated);
     const total = plan.hunks.reduce((s, h) => s + h.count, 0);
-    const msg = `Arquivo editado: ${plan.abs} — ${total} substituição(ões) (linhas ${plan.hunks.map((h) => h.line).join(', ')})`;
+    const msg = `Arquivo editado: ${plan.abs}: ${total} substituição(ões) (linhas ${plan.hunks.map((h) => h.line).join(', ')})`;
     ctx.onOutput(msg);
     return msg;
   },

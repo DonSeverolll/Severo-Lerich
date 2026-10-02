@@ -4,8 +4,11 @@ import { DEFAULT_PROVIDERS } from './providers';
 import type { Preview } from './tools';
 import type { Conversation, OrbState, Provider, StoredMessage, ToolRun } from './types';
 
+export type ThemePref = 'system' | 'dark' | 'light';
+
 export interface Settings {
   providers: Provider[];
+  theme: ThemePref;
   temperature?: number;
   /** Ferramentas do sistema (PowerShell/arquivos) — só têm efeito no app desktop. */
   agentEnabled: boolean;
@@ -22,6 +25,7 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   providers: DEFAULT_PROVIDERS,
+  theme: 'system',
   agentEnabled: true,
   autoApprove: false,
   workingDir: '',
@@ -97,12 +101,19 @@ export const useApp = create<AppState>()(
       setProviders: (providers) => set((s) => ({ settings: { ...s.settings, providers } })),
 
       newConversation: () => {
+        // Reaproveita uma conversa vazia em vez de empilhar várias "Nova conversa".
+        const empty = get().conversations.find((c) => !c.messages.length);
+        if (empty) {
+          set({ activeId: empty.id, view: 'chat', sidebarOpen: false });
+          return empty.id;
+        }
         const id = uid();
         const now = Date.now();
         set((s) => ({
           conversations: [{ id, title: 'Nova conversa', createdAt: now, updatedAt: now, messages: [], toolRuns: {} }, ...s.conversations],
           activeId: id,
           view: 'chat',
+          sidebarOpen: false,
         }));
         return id;
       },

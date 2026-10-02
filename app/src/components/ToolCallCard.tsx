@@ -1,15 +1,17 @@
+import { CaretRightIcon, CheckCircleIcon, CircleNotchIcon, ClockIcon, ProhibitIcon, ShieldWarningIcon, XCircleIcon } from '@phosphor-icons/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
-import { CheckCircle2, ChevronDown, ChevronRight, CircleSlash, Clock, Loader2, ShieldAlert, XCircle } from 'lucide-react';
+import { enter, spring } from '../lib/motion';
 import { useApp } from '../lib/store';
 import { TOOL_MAP, type Preview } from '../lib/tools';
 import type { ToolCall, ToolRun } from '../lib/types';
 
 const STATUS = {
-  pending: { icon: Clock, color: 'var(--warning)', text: 'aguardando' },
-  running: { icon: Loader2, color: 'var(--gold-300)', text: 'executando' },
-  success: { icon: CheckCircle2, color: 'var(--success)', text: 'ok' },
-  error: { icon: XCircle, color: 'var(--danger)', text: 'erro' },
-  denied: { icon: CircleSlash, color: 'var(--text-3)', text: 'negado' },
+  pending: { icon: ClockIcon, color: 'var(--warning)', text: 'Aguardando' },
+  running: { icon: CircleNotchIcon, color: 'var(--accent)', text: 'Executando' },
+  success: { icon: CheckCircleIcon, color: 'var(--success)', text: 'Concluído' },
+  error: { icon: XCircleIcon, color: 'var(--danger)', text: 'Falhou' },
+  denied: { icon: ProhibitIcon, color: 'var(--text-3)', text: 'Negado' },
 } as const;
 
 function parseArgs(raw: string): Record<string, any> {
@@ -20,22 +22,27 @@ function parseArgs(raw: string): Record<string, any> {
   }
 }
 
-function summary(call: ToolCall, args: Record<string, any>): string {
+function summary(args: Record<string, any>): string {
   const first = args.command ?? args.path ?? args.pattern ?? Object.values(args)[0];
   const text = typeof first === 'string' ? first : first ? JSON.stringify(first) : '';
-  const line = text.split('\n')[0];
-  return line.length > 70 ? `${line.slice(0, 70)}…` : line;
+  return text.split('\n')[0];
 }
 
+function formatLatency(ms?: number): string | null {
+  if (ms == null) return null;
+  return ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`;
+}
+
+const codeBox = 'max-h-72 overflow-auto whitespace-pre rounded-[10px] p-3 font-mono text-[12.5px] leading-relaxed';
+
 function PreviewView({ preview }: { preview: Preview }) {
-  const box = 'rounded-lg p-2.5 overflow-auto max-h-72 text-[12px] leading-relaxed font-mono whitespace-pre';
   if (preview.kind === 'command') {
     return (
-      <div>
-        <div className="text-[11px] mb-1" style={{ color: 'var(--text-3)' }}>
-          {preview.shell} em {preview.cwd}
-        </div>
-        <pre className={box} style={{ background: '#0a0805', color: 'var(--gold-200)' }}>
+      <div className="space-y-1.5">
+        <p className="text-[12px]" style={{ color: 'var(--text-3)' }}>
+          {preview.shell === 'pwsh' ? 'PowerShell 7' : 'PowerShell'} em <span className="font-mono">{preview.cwd}</span>
+        </p>
+        <pre className={codeBox} style={{ background: 'var(--code-bg)' }}>
           <span style={{ color: 'var(--text-3)' }}>PS&gt; </span>
           {preview.command}
         </pre>
@@ -45,35 +52,39 @@ function PreviewView({ preview }: { preview: Preview }) {
   if (preview.kind === 'file') {
     const lines = preview.content.split('\n');
     return (
-      <div>
-        <div className="text-[11px] mb-1" style={{ color: preview.linesBefore === null ? 'var(--success)' : 'var(--warning)' }}>
-          {preview.linesBefore === null ? 'novo arquivo' : `sobrescrever (${preview.linesBefore} → ${lines.length} linhas)`} · {preview.path}
-        </div>
-        <pre className={box} style={{ background: '#0a0805', color: 'var(--text)' }}>
+      <div className="space-y-1.5">
+        <p className="text-[12px]" style={{ color: 'var(--text-3)' }}>
+          <span style={{ color: preview.linesBefore === null ? 'var(--success)' : 'var(--warning)' }}>
+            {preview.linesBefore === null ? 'Novo arquivo' : `Substitui o arquivo (${preview.linesBefore} → ${lines.length} linhas)`}
+          </span>{' '}
+          <span className="font-mono">{preview.path}</span>
+        </p>
+        <pre className={codeBox} style={{ background: 'var(--code-bg)' }}>
           {lines.slice(0, 60).join('\n')}
-          {lines.length > 60 ? `\n… (+${lines.length - 60} linhas)` : ''}
+          {lines.length > 60 ? `\n… mais ${lines.length - 60} linhas` : ''}
         </pre>
       </div>
     );
   }
   return (
-    <div>
-      <div className="text-[11px] mb-1" style={{ color: 'var(--text-3)' }}>
+    <div className="space-y-1.5">
+      <p className="font-mono text-[12px]" style={{ color: 'var(--text-3)' }}>
         {preview.path}
-      </div>
-      <div className={box} style={{ background: '#0a0805' }}>
+      </p>
+      <div className={codeBox} style={{ background: 'var(--code-bg)' }}>
         {preview.hunks.map((h, i) => (
-          <div key={i} className="mb-2">
-            <div style={{ color: 'var(--gold-400)' }}>
-              @@ linha {h.line} @@{h.count > 1 ? ` (${h.count} ocorrências)` : ''}
+          <div key={i} className={i ? 'mt-3' : ''}>
+            <div style={{ color: 'var(--text-3)' }}>
+              linha {h.line}
+              {h.count > 1 ? `, ${h.count} ocorrências` : ''}
             </div>
             {h.oldText.split('\n').map((l, j) => (
-              <div key={`o${j}`} style={{ color: '#f0a090', background: 'rgba(229,115,95,0.08)' }}>
+              <div key={`o${j}`} style={{ color: 'var(--danger)', background: 'var(--danger-soft)' }}>
                 - {l}
               </div>
             ))}
             {h.newText.split('\n').map((l, j) => (
-              <div key={`n${j}`} style={{ color: '#b9d68a', background: 'rgba(143,194,122,0.08)' }}>
+              <div key={`n${j}`} style={{ color: 'var(--success)', background: 'color-mix(in srgb, var(--success) 10%, transparent)' }}>
                 + {l}
               </div>
             ))}
@@ -92,61 +103,91 @@ export function ToolCallCard({ call, run, conversationId }: { call: ToolCall; ru
   const Icon = cfg.icon;
   const args = parseArgs(call.function.arguments);
   const tool = TOOL_MAP.get(call.function.name);
-  const expanded = open || Boolean(pending) || status === 'running';
+  const expanded = open || status === 'running';
+  const latency = formatLatency(run?.latencyMs);
 
   return (
-    <div className="rounded-xl overflow-hidden text-[13px] fade-in" style={{ border: `1px solid ${pending ? 'var(--border-strong)' : 'var(--border)'}`, background: 'rgba(20,16,10,0.7)' }}>
-      <button onClick={() => setOpen(!open)} className="w-full flex items-center gap-2 px-3 py-2 text-left cursor-pointer">
-        {expanded ? <ChevronDown size={13} style={{ color: 'var(--text-3)' }} /> : <ChevronRight size={13} style={{ color: 'var(--text-3)' }} />}
-        <Icon size={14} style={{ color: cfg.color }} className={status === 'running' ? 'animate-spin' : ''} />
-        <span className="font-medium shrink-0" style={{ color: 'var(--gold-200)' }}>
-          {tool?.label ?? call.function.name}
+    <motion.div
+      variants={enter}
+      initial="initial"
+      animate="animate"
+      className="overflow-hidden rounded-[18px] border"
+      style={{
+        borderColor: pending ? 'color-mix(in srgb, var(--accent) 45%, transparent)' : 'var(--line)',
+        background: 'var(--bg-raised)',
+        boxShadow: `inset 2px 0 0 ${cfg.color}`,
+      }}
+    >
+      <button
+        onClick={() => setOpen(!open)}
+        aria-expanded={expanded}
+        className="flex min-h-11 w-full items-center gap-2.5 px-3.5 py-2 text-left cursor-pointer"
+      >
+        <motion.span animate={{ rotate: expanded ? 90 : 0 }} transition={{ duration: 0.15 }} className="grid place-items-center" style={{ color: 'var(--text-3)' }}>
+          <CaretRightIcon size={14} aria-hidden />
+        </motion.span>
+        <Icon size={17} style={{ color: cfg.color }} className={status === 'running' ? 'animate-spin motion-reduce:animate-none' : ''} aria-hidden />
+        <span className="shrink-0 text-[14px] font-medium">{tool?.label ?? call.function.name}</span>
+        <span className="min-w-0 flex-1 truncate font-mono text-[12.5px]" style={{ color: 'var(--text-3)' }}>
+          {summary(args)}
         </span>
-        <span className="truncate font-mono text-[11.5px]" style={{ color: 'var(--text-3)' }}>
-          {summary(call, args)}
-        </span>
-        <span className="flex-1" />
-        <span className="text-[11px] shrink-0" style={{ color: 'var(--text-3)' }}>
-          {run?.latencyMs != null ? (run.latencyMs < 1000 ? `${run.latencyMs}ms` : `${(run.latencyMs / 1000).toFixed(1)}s`) : cfg.text}
+        <span className="shrink-0 text-[12px] tabular-nums" style={{ color: 'var(--text-3)' }}>
+          {latency ?? cfg.text}
         </span>
       </button>
 
-      {pending && (
-        <div className="px-3 pb-3 space-y-3">
-          {pending.preview && <PreviewView preview={pending.preview} />}
-          <div className="flex items-center gap-2 text-[12.5px]" style={{ color: 'var(--warning)' }}>
-            <ShieldAlert size={15} /> O Severo quer executar esta ação no seu PC.
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button onClick={() => pending.resolve('yes')} className="btn-gold rounded-lg px-4 py-1.5 text-[13px] cursor-pointer">
-              Permitir
-            </button>
-            <button
-              onClick={() => pending.resolve('always')}
-              className="rounded-lg px-4 py-1.5 text-[13px] cursor-pointer"
-              style={{ border: '1px solid var(--border-strong)', color: 'var(--gold-200)' }}
-            >
-              Permitir tudo nesta tarefa
-            </button>
-            <button onClick={() => pending.resolve('no')} className="rounded-lg px-4 py-1.5 text-[13px] cursor-pointer hover:bg-white/5" style={{ color: 'var(--text-2)' }}>
-              Negar
-            </button>
-          </div>
-        </div>
-      )}
+      <AnimatePresence initial={false}>
+        {pending && (
+          <motion.div
+            key="approval"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0, transition: spring }}
+            exit={{ opacity: 0, transition: { duration: 0.12 } }}
+            className="space-y-3 px-3.5 pb-3.5"
+            role="group"
+            aria-label="Aprovação da ação"
+          >
+            {pending.preview && <PreviewView preview={pending.preview} />}
+            <p className="flex items-center gap-2 text-[13px]" style={{ color: 'var(--text-2)' }}>
+              <ShieldWarningIcon size={17} style={{ color: 'var(--warning)' }} aria-hidden />
+              O Severo quer executar esta ação no seu PC.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => pending.resolve('yes')} className="btn btn-primary h-9 px-4" autoFocus>
+                Permitir
+              </button>
+              <button onClick={() => pending.resolve('always')} className="btn btn-secondary h-9 px-4">
+                Permitir nesta tarefa
+              </button>
+              <button onClick={() => pending.resolve('no')} className="btn btn-ghost h-9 px-4">
+                Negar
+              </button>
+            </div>
+          </motion.div>
+        )}
 
-      {expanded && !pending && (
-        <div className="px-3 pb-3 space-y-2">
-          <pre className="rounded-lg p-2 text-[11.5px] font-mono overflow-auto max-h-40 whitespace-pre-wrap" style={{ background: '#0a0805', color: 'var(--text-2)' }}>
-            {JSON.stringify(args, null, 2)}
-          </pre>
-          {run?.output && (
-            <pre className="rounded-lg p-2 text-[11.5px] font-mono overflow-auto max-h-72 whitespace-pre-wrap" style={{ background: '#0a0805', color: status === 'error' ? '#f0a090' : 'var(--text)' }}>
-              {run.output}
+        {expanded && !pending && (
+          <motion.div
+            key="details"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1, transition: { duration: 0.18 } }}
+            exit={{ opacity: 0, transition: { duration: 0.1 } }}
+            className="space-y-2 px-3.5 pb-3.5"
+          >
+            <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded-[10px] p-3 font-mono text-[12px]" style={{ background: 'var(--code-bg)', color: 'var(--text-2)' }}>
+              {JSON.stringify(args, null, 2)}
             </pre>
-          )}
-        </div>
-      )}
-    </div>
+            {run?.output && (
+              <pre
+                className="max-h-72 overflow-auto whitespace-pre-wrap rounded-[10px] p-3 font-mono text-[12px]"
+                style={{ background: 'var(--code-bg)', color: status === 'error' ? 'var(--danger)' : 'var(--text)' }}
+              >
+                {run.output}
+              </pre>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }

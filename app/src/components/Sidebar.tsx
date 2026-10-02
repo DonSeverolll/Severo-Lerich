@@ -1,123 +1,178 @@
-import { MessageSquarePlus, Settings, Trash2, Monitor, Smartphone, Globe } from 'lucide-react';
-import { isAndroid, isTauri, hasSystemTools } from '../lib/platform';
+import { DesktopIcon, DeviceMobileIcon, GearIcon, GlobeIcon, NotePencilIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
+import { AnimatePresence, motion } from 'motion/react';
+import { useEffect, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
+import { spring } from '../lib/motion';
+import { hasSystemTools, isAndroid, isTauri } from '../lib/platform';
 import { useApp } from '../lib/store';
+import type { Conversation } from '../lib/types';
 import { Orb } from './Orb';
 
-function relativeDay(ts: number): string {
-  const d = new Date(ts);
-  const today = new Date();
-  const diff = Math.floor((today.setHours(0, 0, 0, 0) - new Date(ts).setHours(0, 0, 0, 0)) / 86_400_000);
+function groupLabel(ts: number): string {
+  const day = (t: number) => new Date(t).setHours(0, 0, 0, 0);
+  const diff = Math.round((day(Date.now()) - day(ts)) / 86_400_000);
   if (diff === 0) return 'Hoje';
   if (diff === 1) return 'Ontem';
   if (diff < 7) return 'Últimos 7 dias';
-  return d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  const label = new Date(ts).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
-export function Sidebar() {
-  const { conversations, activeId, sidebarOpen, view, busy, agentEnabled } = useApp(
-    useShallow((s) => ({
-    conversations: s.conversations,
-    activeId: s.activeId,
-    sidebarOpen: s.sidebarOpen,
-    view: s.view,
-    busy: s.busy,
-    agentEnabled: s.settings.agentEnabled,
-    })),
-  );
-  const { newConversation, selectConversation, deleteConversation, setView } = useApp.getState();
+function useIsDesktop(): boolean {
+  const query = '(min-width: 768px)';
+  const [desktop, setDesktop] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const onChange = () => setDesktop(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return desktop;
+}
 
-  const groups: { label: string; items: typeof conversations }[] = [];
-  for (const c of conversations) {
-    const label = relativeDay(c.updatedAt);
+function ConversationItem({ c, active, disabled }: { c: Conversation; active: boolean; disabled: boolean }) {
+  const { selectConversation, deleteConversation } = useApp.getState();
+  return (
+    <li className="group relative flex items-center">
+      <button
+        onClick={() => selectConversation(c.id)}
+        disabled={disabled}
+        aria-current={active ? 'page' : undefined}
+        className="flex-1 min-w-0 truncate rounded-[10px] py-2 pl-3 pr-10 text-left text-[14px] transition-colors duration-150 cursor-pointer disabled:cursor-not-allowed"
+        style={{ background: active ? 'var(--accent-soft)' : undefined, color: active ? 'var(--text)' : 'var(--text-2)' }}
+      >
+        {c.title}
+      </button>
+      <button
+        onClick={() => deleteConversation(c.id)}
+        disabled={disabled}
+        className="btn btn-ghost btn-icon absolute right-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
+        aria-label={`Apagar a conversa "${c.title}"`}
+      >
+        <TrashIcon size={16} aria-hidden />
+      </button>
+    </li>
+  );
+}
+
+function SidebarContent({ onClose }: { onClose?: () => void }) {
+  const { conversations, activeId, view, busy, agentEnabled } = useApp(
+    useShallow((s) => ({ conversations: s.conversations, activeId: s.activeId, view: s.view, busy: s.busy, agentEnabled: s.settings.agentEnabled })),
+  );
+  const { newConversation, setView } = useApp.getState();
+
+  const groups: { label: string; items: Conversation[] }[] = [];
+  const listed = conversations.filter((c) => c.messages.length);
+  for (const c of listed) {
+    const label = groupLabel(c.updatedAt);
     const g = groups.find((x) => x.label === label);
     if (g) g.items.push(c);
     else groups.push({ label, items: [c] });
   }
 
-  const PlatformIcon = isAndroid ? Smartphone : isTauri ? Monitor : Globe;
-  const platformText = hasSystemTools ? (agentEnabled ? 'PC · agente ativo' : 'PC · só conversa') : isAndroid ? 'Android · conversa' : 'Navegador · conversa';
+  const PlatformIcon = isAndroid ? DeviceMobileIcon : isTauri ? DesktopIcon : GlobeIcon;
+  const platformText = hasSystemTools ? (agentEnabled ? 'PC, agente ativo' : 'PC, só conversa') : isAndroid ? 'Android' : 'Navegador';
 
   return (
-    <aside
-      className={`glass fixed md:relative z-30 h-full flex flex-col shrink-0 transition-transform duration-300 md:translate-x-0 ${
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}
-      style={{ width: 'var(--sidebar-w)', borderWidth: '0 1px 0 0', paddingTop: 'var(--safe-top)', paddingBottom: 'var(--safe-bottom)' }}
-    >
-      <div className="flex items-center gap-3 px-5 pt-5 pb-4">
-        <Orb size={34} />
-        <div>
-          <div className="gold-text text-[19px] font-semibold tracking-[0.22em]">SEVERO</div>
-          <div className="text-[11px]" style={{ color: 'var(--text-3)' }}>
-            assistente pessoal
-          </div>
-        </div>
+    <div className="flex h-full flex-col" style={{ paddingTop: 'var(--safe-top)', paddingBottom: 'var(--safe-bottom)' }}>
+      <div className="flex items-center gap-3 px-4 pt-4 pb-3">
+        <Orb size={30} />
+        <span className="text-[17px] font-semibold tracking-[-0.01em]">Severo</span>
+        <span className="flex-1" />
+        {onClose && (
+          <button onClick={onClose} className="btn btn-ghost btn-icon" aria-label="Fechar menu">
+            <XIcon size={20} aria-hidden />
+          </button>
+        )}
       </div>
 
       <div className="px-3">
-        <button
-          onClick={() => !busy && newConversation()}
-          disabled={busy}
-          className="btn-gold w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm cursor-pointer"
-        >
-          <MessageSquarePlus size={16} /> Nova conversa
+        <button onClick={() => newConversation()} disabled={busy} className="btn btn-secondary h-10 w-full">
+          <NotePencilIcon size={18} aria-hidden /> Nova conversa
         </button>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-2 py-3 mt-1">
-        {!conversations.length && (
-          <p className="px-3 py-6 text-center text-xs" style={{ color: 'var(--text-3)' }}>
-            Suas conversas aparecem aqui.
+      <nav aria-label="Conversas" className="mt-3 flex-1 overflow-y-auto px-2 pb-3">
+        {!listed.length && (
+          <p className="px-3 py-8 text-center text-[13px]" style={{ color: 'var(--text-3)' }}>
+            Nenhuma conversa ainda.
           </p>
         )}
         {groups.map((g) => (
-          <div key={g.label} className="mb-3">
-            <div className="px-3 pb-1 text-[10.5px] uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>
+          <section key={g.label} className="mb-4">
+            <h2 className="px-3 pb-1 text-[12px] font-medium" style={{ color: 'var(--text-3)' }}>
               {g.label}
-            </div>
-            {g.items.map((c) => {
-              const active = c.id === activeId && view === 'chat';
-              return (
-                <div
-                  key={c.id}
-                  className="group flex items-center rounded-lg pr-1 transition-colors"
-                  style={{ background: active ? 'rgba(226,176,74,0.1)' : undefined, boxShadow: active ? 'inset 2px 0 0 var(--gold-400)' : undefined }}
-                >
-                  <button
-                    onClick={() => !busy && selectConversation(c.id)}
-                    className="flex-1 min-w-0 text-left px-3 py-2 text-[13.5px] truncate cursor-pointer"
-                    style={{ color: active ? 'var(--gold-50)' : 'var(--text-2)' }}
-                  >
-                    {c.title}
-                  </button>
-                  <button
-                    onClick={() => !busy && deleteConversation(c.id)}
-                    className="p-1.5 rounded-md opacity-60 md:opacity-0 group-hover:opacity-100 hover:bg-white/5 cursor-pointer"
-                    style={{ color: 'var(--text-3)' }}
-                    aria-label="Apagar conversa"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+            </h2>
+            <ul>
+              {g.items.map((c) => (
+                <ConversationItem key={c.id} c={c} active={c.id === activeId && view === 'chat'} disabled={busy} />
+              ))}
+            </ul>
+          </section>
         ))}
       </nav>
 
-      <div className="px-3 pb-4 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
+      <div className="border-t px-3 pt-2 pb-3" style={{ borderColor: 'var(--line)' }}>
         <button
           onClick={() => setView(view === 'settings' ? 'chat' : 'settings')}
-          className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm cursor-pointer hover:bg-white/5"
-          style={{ color: view === 'settings' ? 'var(--gold-200)' : 'var(--text-2)' }}
+          aria-current={view === 'settings' ? 'page' : undefined}
+          className="flex h-10 w-full items-center gap-3 rounded-[10px] px-3 text-[14px] transition-colors duration-150 cursor-pointer hover:bg-[var(--surface-hover)]"
+          style={{ background: view === 'settings' ? 'var(--accent-soft)' : undefined, color: view === 'settings' ? 'var(--text)' : 'var(--text-2)' }}
         >
-          <Settings size={16} /> Configurações
+          <GearIcon size={18} aria-hidden /> Configurações
         </button>
-        <div className="flex items-center gap-2 px-3 pt-2 text-[11px]" style={{ color: 'var(--text-3)' }}>
-          <PlatformIcon size={12} /> {platformText}
+        <div className="flex items-center gap-2 px-3 pt-2 text-[12px]" style={{ color: 'var(--text-3)' }}>
+          <PlatformIcon size={14} aria-hidden /> {platformText}
         </div>
       </div>
-    </aside>
+    </div>
+  );
+}
+
+/** Barra lateral fixa no desktop; gaveta com scrim no celular. */
+export function Sidebar() {
+  const open = useApp((s) => s.sidebarOpen);
+  const setOpen = useApp.getState().setSidebarOpen;
+  const desktop = useIsDesktop();
+
+  if (desktop) {
+    return (
+      <aside className="relative z-20 h-full shrink-0 border-r" style={{ width: 'var(--sidebar-w)', background: 'var(--bg-raised)', borderColor: 'var(--line)' }}>
+        <SidebarContent />
+      </aside>
+    );
+  }
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.div
+            key="scrim"
+            className="fixed inset-0 z-30"
+            style={{ background: 'var(--scrim)' }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={() => setOpen(false)}
+          />
+          <motion.aside
+            key="drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menu"
+            className="fixed inset-y-0 left-0 z-40 border-r"
+            style={{ width: 'min(var(--sidebar-w), 86vw)', background: 'var(--bg-raised)', borderColor: 'var(--line)', boxShadow: 'var(--shadow-raised)' }}
+            initial={{ x: '-100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '-100%', transition: { duration: 0.2, ease: [0.65, 0, 0.35, 1] } }}
+            transition={spring}
+          >
+            <SidebarContent onClose={() => setOpen(false)} />
+          </motion.aside>
+        </>
+      )}
+    </AnimatePresence>
   );
 }
