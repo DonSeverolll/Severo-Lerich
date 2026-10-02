@@ -65,6 +65,9 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: android-actions/setup-android@v3
+        with:
+          # O padrão inclui o pacote legado "tools", que não existe mais no SDK atual.
+          packages: platform-tools
       - name: SDK, build-tools e NDK
         run: |
           sdkmanager --install "platforms;android-35" "build-tools;${BUILD_TOOLS}" "ndk;${NDK_VERSION}" > /dev/null
